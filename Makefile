@@ -1,42 +1,44 @@
-SPACK ?= spack
+export SPACK ?= spack
 PROFILE_DIR ?= $(CURDIR)/profiles
-
-# todo, make spack locate this based on %clang
+PROFILE_MERGED := $(PROFILE_DIR)/merged.prof
 LLVM_PROFDATA ?= llvm-profdata
 
 .SUFFIXES: 
 
-.PHONY: stage1 stage2
+.PHONY: all clean distclean
 
-# Build with instrumentation
-stage1: generate/env
-
-# Use the instrumentation
-stage2: use/env
+all: stage1
 
 spack.lock: spack.yaml
 	$(SPACK) -e . concretize -f --fresh
+	
+%.mk: spack.lock
+	$(SPACK) -e . env depfile --make-target-prefix $*.deps -o $@
 
-# Make sure gnu make doesn't remove intermediate files
-keep: spack.lock
+# Build with profile-generate
+stage1: export SPACK_EXTRA_CFLAGS=-fprofile-generate=$(PROFILE_DIR) -Xclang -mllvm -Xclang -vp-counters-per-site=6
+stage1: stage1.mk
+	$(MAKE) -f $< && touch $@
 
-# Inject the -fprofile-generate flag
-generate/.install/%: export SPACK_EXTRA_CFLAGS=-fprofile-generate=$(PROFILE_DIR) -Xclang -mllvm -Xclang -vp-counters-per-site=6
+# Build with profile-use
+stage2: export SPACK_EXTRA_CFLAGS=-fprofile-use=$(PROFILE_MERGED)
+stage2: stage2.mk $(PROFILE_MERGED) store.stage1
+	$(MAKE) -f $< && touch $@
 
-# Inject the -fprofile-use flag
-use/.install/%: export SPACK_EXTRA_CFLAGS=-fprofile-use=$(PROFILE_DIR)/merged.prof
-
-# Generate Makefiles for stage1 (generate) and stage2 (use)
-%.Makefile: spack.lock
-	$(SPACK) -e . env depfile --make-target-prefix $* -o $@
+# Backup the instrumented build
+store.stage1: stage1
+	mv store store.stage1
 
 # Merge all collected profile data
-$(PROFILE_DIR)/merged.prof: generate/env
-	$(LLVM_PROFDATA) merge -output=$@ $(PROFILE_DIR)/*.profraw && \
-	mv store store.generate
+$(PROFILE_MERGED): stage1
+	$(LLVM_PROFDATA) merge -output=$@ $(PROFILE_DIR)/*.profraw
 
-include generate.Makefile
-ifneq (,$(wildcard generate.Makefile))
-include use.Makefile
-endif
+# Make sure make doesn't consider spack.lock intermediate
+.pleasekeep: spack.lock
+
+clean:
+	rm -rf $(wildcard *.deps) $(wildcard *.mk) .spack-env spack.lock stage1 stage2
+
+distclean: clean
+	rm -rf store store.stage1 profiles
 

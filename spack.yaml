@@ -5,6 +5,9 @@ spack:
   config:
     install_tree:
       root: store
+  packages:
+    all:
+      compiler: [clang]
 #  # Example compiler configuration, clang is required, but other compilers can be used as a fallback.
 #  compilers:
 #  - compiler:
