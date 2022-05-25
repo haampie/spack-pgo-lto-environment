@@ -10,7 +10,7 @@ How to use this:
 2. Apply the provided patch to Spack's compiler wrapper
 3. Run `make stage1 -j$(nproc) -Orecurse SPACK_COLOR=always`
 4. [Maybe remove the `profiles/` dir to get rid of build time profile data]
-5. Use your software in `store/` to generate reports
+5. Run your software in `store/` to generate profiles
 6. Run `make stage2 -j$(nproc) -Orecurse SPACK_COLOR=always`
 
 
