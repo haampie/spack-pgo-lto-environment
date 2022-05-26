@@ -16,12 +16,14 @@ spack.lock: spack.yaml
 	$(SPACK) -e . env depfile --make-target-prefix $*.deps -o $@
 
 # Build with profile-generate
-stage1: export SPACK_EXTRA_CFLAGS=-fprofile-generate=$(PROFILE_DIR) -Xclang -mllvm -Xclang -vp-counters-per-site=6
+stage1: export SPACK_EXTRA_CC_FLAGS=-fprofile-generate=$(PROFILE_DIR) -Xclang -mllvm -Xclang -vp-counters-per-site=6 -ffunction-sections
+stage1: export SPACK_EXTRA_CCLD_FLAGS=-fuse-ld=lld -flto=thin -Wl,-O3
 stage1: stage1.mk
 	$(MAKE) -f $< && touch $@
 
 # Build with profile-use
-stage2: export SPACK_EXTRA_CFLAGS=-fprofile-use=$(PROFILE_MERGED)
+stage2: export SPACK_EXTRA_CC_FLAGS=-fprofile-use=$(PROFILE_MERGED) -ffunction-sections
+stage2: export SPACK_EXTRA_CCLD_FLAGS=-fuse-ld=lld -flto=thin -Wl,-O3,--icf=safe,--print-icf-sections
 stage2: stage2.mk $(PROFILE_MERGED) store.stage1
 	$(MAKE) -f $< && touch $@
 
