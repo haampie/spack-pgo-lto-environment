@@ -24,3 +24,37 @@ index 6ce60a8730..cfc2d4dca7 100755
  full_command_list="$command"
  extend full_command_list args_list
  
+diff --git a/lib/spack/spack/installer.py b/lib/spack/spack/installer.py
+index 2e430b8a07..8fd6ab4006 100644
+--- a/lib/spack/spack/installer.py
++++ b/lib/spack/spack/installer.py
+@@ -1930,11 +1930,29 @@ def _real_install(self):
+             # cache debug settings
+             debug_level = tty.debug_level()
+ 
++            spack_extra_cc_flags = os.environ.pop('SPACK_EXTRA_CC_FLAGS', None)
++            spack_extra_ccld_flags = os.environ.pop('SPACK_EXTRA_CCLD_FLAGS', None)
++            skip_extra_flags_in_phase = [
++                'autoreconf', 'bootstrap', 'cmake',
++                'configure', 'edit', 'initconfig', 'meson'
++            ]
++
+             # Spawn a daemon that reads from a pipe and redirects
+             # everything to log_path, and provide the phase for logging
+             for i, (phase_name, phase_attr) in enumerate(zip(
+                     pkg.phases, pkg._InstallPhase_phases)):
+ 
++                # Only set SPACK_EXTRA_*_FLAGS during the build... avoid PGO flags
++                # during configure etc.
++                if phase_name in skip_extra_flags_in_phase:
++                    os.environ.pop('SPACK_EXTRA_CC_FLAGS', None)
++                    os.environ.pop('SPACK_EXTRA_CCLD_FLAGS', None)
++                else:
++                    if spack_extra_cc_flags is not None:
++                        os.environ['SPACK_EXTRA_CC_FLAGS'] = spack_extra_cc_flags
++                    if spack_extra_ccld_flags is not None:
++                        os.environ['SPACK_EXTRA_CCLD_FLAGS'] = spack_extra_ccld_flags
++
+                 # Keep a log file for each phase
+                 log_dir = os.path.dirname(pkg.log_path)
+                 log_file = "spack-build-%02d-%s-out.txt" % (

@@ -5,7 +5,7 @@ LLVM_PROFDATA ?= llvm-profdata
 
 .SUFFIXES: 
 
-.PHONY: all clean distclean
+.PHONY: all clean distclean store.stage1
 
 all: stage1
 
@@ -23,13 +23,13 @@ stage1: stage1.mk
 
 # Build with profile-use
 stage2: export SPACK_EXTRA_CC_FLAGS=-fprofile-use=$(PROFILE_MERGED) -ffunction-sections -gz
-stage2: export SPACK_EXTRA_CCLD_FLAGS=-fuse-ld=lld -flto=thin -Wl,-O3,--compress-debug-sections=zlib,--icf=safe
+stage2: export SPACK_EXTRA_CCLD_FLAGS=-fuse-ld=lld -flto=thin -Wl,-O3,--compress-debug-sections=zlib,--icf=safe,--print-icf-sections
 stage2: stage2.mk $(PROFILE_MERGED) store.stage1
 	$(MAKE) -f $< && touch $@
 
 # Backup the instrumented build
 store.stage1: stage1
-	mv store store.stage1
+	rm -rf store.stage1 && mv store store.stage1
 
 # Merge all collected profile data
 $(PROFILE_MERGED): stage1
